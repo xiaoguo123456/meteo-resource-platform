@@ -8,7 +8,7 @@ class Settings(BaseModel):
     app_name: str = "气象资源空间智能平台"
     open_meteo_base_url: str = Field(default="http://localhost:8090/v1", alias="OPEN_METEO_BASE_URL")
     open_meteo_timeout_seconds: float = Field(default=12.0, alias="OPEN_METEO_TIMEOUT_SECONDS")
-    allow_demo_data: bool = Field(default=True, alias="ALLOW_DEMO_DATA")
+    allow_demo_data: bool = Field(default=False, alias="ALLOW_DEMO_DATA")
     cors_origins: str = Field(default="http://localhost:5173", alias="CORS_ORIGINS")
 
     model_config = {"populate_by_name": True}

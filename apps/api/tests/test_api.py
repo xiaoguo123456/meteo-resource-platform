@@ -1,5 +1,9 @@
-from fastapi.testclient import TestClient
 import httpx
+import os
+
+from fastapi.testclient import TestClient
+
+os.environ["ALLOW_DEMO_DATA"] = "true"
 
 from app.main import app
 from app.config import Settings
@@ -30,7 +34,7 @@ def test_demo_forecast_has_quality_and_points() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["points"]
-    assert payload["points"][0]["quality_flag"] == "raw"
+    assert payload["points"][0]["quality_flag"] == "estimated"
 
 
 def test_resource_assessment() -> None:

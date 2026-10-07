@@ -23,6 +23,7 @@ class OpenMeteoClient:
             "hourly": "temperature_2m,wind_speed_10m,precipitation,cloud_cover,shortwave_radiation",
             "forecast_days": 3,
             "timezone": "UTC",
+            "wind_speed_unit": "ms",
         }
         url = f"{self.settings.open_meteo_base_url.rstrip('/')}/forecast"
         try:
@@ -54,13 +55,17 @@ class OpenMeteoClient:
         points: list[WeatherPoint] = []
         for index, timestamp in enumerate(times):
             values = {key: values[index] if index < len(values) else None for key, values in arrays.items()}
-            points.append(WeatherPoint(time=datetime.fromisoformat(timestamp).replace(tzinfo=timezone.utc), **values))
+            parsed_time = datetime.fromisoformat(timestamp)
+            if parsed_time.tzinfo is None:
+                parsed_time = parsed_time.replace(tzinfo=timezone.utc)
+            points.append(WeatherPoint(time=parsed_time.astimezone(timezone.utc),
+                                       quality_flag="missing" if any(v is None for v in values.values()) else "raw", **values))
         if not points:
             raise OpenMeteoError("Open-Meteo 响应缺少 hourly.time")
         return WeatherForecastResponse(
             watchpoint=watchpoint,
-            model=str(payload.get("model") or payload.get("generationtime_ms", "open-meteo")),
-            run_time=datetime.now(timezone.utc),
+            model=str(payload.get("model") or "best_match"),
+            fetched_at=datetime.now(timezone.utc),
             source=source,
             points=points,
         )

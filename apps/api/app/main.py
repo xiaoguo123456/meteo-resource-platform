@@ -43,6 +43,7 @@ def _demo_forecast(watchpoint: Watchpoint) -> WeatherForecastResponse:
         hour = now + timedelta(hours=i)
         points.append({
             "time": hour,
+            "quality_flag": "estimated",
             "temperature_c": round(16 + 7 * ((i % 24) / 23), 1),
             "wind_speed_ms": round(4 + (i % 9) * 0.6, 1),
             "precipitation_mm": round(0.2 * (i % 5), 1),
@@ -53,7 +54,7 @@ def _demo_forecast(watchpoint: Watchpoint) -> WeatherForecastResponse:
     return WeatherForecastResponse(
         watchpoint=watchpoint,
         model="demo",
-        run_time=now,
+        fetched_at=now,
         source="demo",
         points=[WeatherPoint(**point) for point in points],
     )
@@ -103,12 +104,8 @@ async def list_risk_events() -> list[dict[str, Any]]:
 async def quality_summary() -> dict[str, Any]:
     return {
         "sources": [
-            {"name": "Forecast", "status": "healthy", "freshness_minutes": 4, "coverage_percent": 99.8},
-            {"name": "Historical", "status": "healthy", "freshness_minutes": 18, "coverage_percent": 99.2},
-            {"name": "Ensemble", "status": "checking", "freshness_minutes": 28, "coverage_percent": 96.4},
-            {"name": "Air Quality", "status": "healthy", "freshness_minutes": 7, "coverage_percent": 98.6},
-            {"name": "Marine", "status": "checking", "freshness_minutes": 22, "coverage_percent": 94.1},
-            {"name": "Flood", "status": "checking", "freshness_minutes": 45, "coverage_percent": 91.8},
+            {"name": name, "status": "unverified", "freshness_minutes": None, "coverage_percent": None}
+            for name in ["Forecast", "Historical", "Ensemble", "Air Quality", "Marine", "Flood"]
         ],
         "updated_at": now_utc(),
     }

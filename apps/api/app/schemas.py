@@ -33,7 +33,8 @@ class WeatherPoint(BaseModel):
 class WeatherForecastResponse(BaseModel):
     watchpoint: Watchpoint
     model: str
-    run_time: datetime
+    run_time: datetime | None = None
+    fetched_at: datetime
     source: str
     points: list[WeatherPoint]
 

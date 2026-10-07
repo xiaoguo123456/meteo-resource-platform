@@ -26,4 +26,4 @@ npm install
 npm run dev
 ```
 
-API 默认使用本地演示数据。配置 `OPEN_METEO_BASE_URL` 后会优先访问自部署 Open-Meteo。
+API 默认只读取 `OPEN_METEO_BASE_URL` 指定的自部署服务，失败返回错误。仅在显式设置 `ALLOW_DEMO_DATA=true` 时允许演示数据。演示结果标记为 `estimated` 和 `source=demo`。
