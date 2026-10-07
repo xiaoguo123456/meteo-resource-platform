@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from .schemas import RiskEvent, RiskRule, Watchpoint
+from .schemas import Report, RiskEvent, RiskRule, Watchpoint
 
 
 def _watchpoint(id_: str, name: str, lat: float, lon: float, tags: list[str]) -> Watchpoint:
@@ -19,6 +19,7 @@ RISK_RULES: dict[str, RiskRule] = {
 }
 
 RISK_EVENTS: list[RiskEvent] = []
+REPORTS: list[Report] = []
 
 
 def add_watchpoint(name: str, latitude: float, longitude: float, tags: list[str]) -> Watchpoint:

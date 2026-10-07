@@ -43,6 +43,15 @@ def test_resource_assessment() -> None:
     assert 0 <= response.json()["solar_score"] <= 100
 
 
+def test_risk_evaluation_and_report_creation() -> None:
+    risk = client.post("/api/v1/risks/evaluate", json={"watchpoint_id": "wp-east"})
+    assert risk.status_code == 200
+    assert isinstance(risk.json(), list)
+    report = client.post("/api/v1/reports", json={"report_type": "weather_brief", "watchpoint_id": "wp-east"})
+    assert report.status_code == 201
+    assert report.json()["source"] == "demo"
+
+
 def test_open_meteo_converts_kmh_to_ms() -> None:
     payload = {
         "model": "ecmwf_ifs",

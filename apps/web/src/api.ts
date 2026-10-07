@@ -16,3 +16,11 @@ export async function getForecast(watchpointId: string) {
 export async function getQualitySummary() {
   return (await client.get<{ sources: { name: string; status: string; freshness_minutes: number; coverage_percent: number }[] }>('/api/v1/quality/summary')).data
 }
+
+export async function evaluateRisks(watchpointId: string) {
+  return (await client.post('/api/v1/risks/evaluate', { watchpoint_id: watchpointId })).data
+}
+
+export async function createReport(reportType: 'weather_brief' | 'resource_assessment' | 'risk_review', watchpointId: string) {
+  return (await client.post('/api/v1/reports', { report_type: reportType, watchpoint_id: watchpointId })).data
+}

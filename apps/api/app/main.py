@@ -6,8 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .open_meteo import OpenMeteoClient, OpenMeteoError
-from .schemas import ResourceAssessment, RiskRule, Watchpoint, WatchpointCreate, WeatherForecastResponse
-from .store import RISK_EVENTS, RISK_RULES, WATCHPOINTS, add_watchpoint, now_utc
+from .schemas import Report, ReportCreate, ResourceAssessment, RiskEvaluateRequest, RiskEvent, RiskRule, Watchpoint, WatchpointCreate, WeatherForecastResponse
+from .store import REPORTS, RISK_EVENTS, RISK_RULES, WATCHPOINTS, add_watchpoint, now_utc
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0")
@@ -100,6 +100,36 @@ async def list_risk_events() -> list[dict[str, Any]]:
     return [event.model_dump(mode="json") for event in RISK_EVENTS]
 
 
+@router.post("/risks/evaluate", response_model=list[RiskEvent])
+async def evaluate_risks(payload: RiskEvaluateRequest) -> list[RiskEvent]:
+    if payload.watchpoint_id not in WATCHPOINTS:
+        raise HTTPException(status_code=404, detail="关注点不存在")
+    forecast_data = await forecast(payload.watchpoint_id)
+    created: list[RiskEvent] = []
+    for rule in RISK_RULES.values():
+        if not rule.enabled:
+            continue
+        for point in forecast_data.points:
+            value = getattr(point, rule.variable, None)
+            if value is None:
+                continue
+            matched = {">": value > rule.threshold, ">=": value >= rule.threshold, "<": value < rule.threshold, "<=": value <= rule.threshold}[rule.operator]
+            if matched:
+                event = RiskEvent(
+                    id=f"event-{rule.id}-{payload.watchpoint_id}-{point.time.strftime('%Y%m%d%H%M')}",
+                    rule_id=rule.id,
+                    rule_name=rule.name,
+                    watchpoint_id=payload.watchpoint_id,
+                    triggered_at=point.time,
+                    evidence={"variable": rule.variable, "operator": rule.operator, "threshold": rule.threshold, "value": value, "quality_flag": point.quality_flag},
+                )
+                if not any(existing.id == event.id for existing in RISK_EVENTS):
+                    RISK_EVENTS.append(event)
+                    created.append(event)
+                break
+    return created
+
+
 @router.get("/quality/summary")
 async def quality_summary() -> dict[str, Any]:
     return {
@@ -109,6 +139,35 @@ async def quality_summary() -> dict[str, Any]:
         ],
         "updated_at": now_utc(),
     }
+
+
+@router.get("/models")
+async def model_summary() -> dict[str, Any]:
+    return {"models": [{"name": name, "status": "available", "run_time": now_utc()} for name in ["ECMWF", "GFS", "ICON"]]}
+
+
+@router.get("/reports", response_model=list[Report])
+async def list_reports() -> list[Report]:
+    return REPORTS
+
+
+@router.post("/reports", response_model=Report, status_code=201)
+async def create_report(payload: ReportCreate) -> Report:
+    if payload.watchpoint_id not in WATCHPOINTS:
+        raise HTTPException(status_code=404, detail="关注点不存在")
+    forecast_data = await forecast(payload.watchpoint_id)
+    mean_temp = round(sum(point.temperature_c or 0 for point in forecast_data.points) / len(forecast_data.points), 1)
+    report = Report(
+        id=f"report-{len(REPORTS) + 1}",
+        report_type=payload.report_type,
+        watchpoint_id=payload.watchpoint_id,
+        title={"weather_brief": "气象简报", "resource_assessment": "资源评估报告", "risk_review": "风险复盘"}[payload.report_type],
+        generated_at=now_utc(),
+        source=forecast_data.source,
+        summary={"model": forecast_data.model, "mean_temperature_c": mean_temp, "point_count": len(forecast_data.points), "quality_flags": sorted({point.quality_flag for point in forecast_data.points})},
+    )
+    REPORTS.append(report)
+    return report
 
 
 app.include_router(router)

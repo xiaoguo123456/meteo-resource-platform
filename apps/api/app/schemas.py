@@ -67,3 +67,22 @@ class RiskEvent(BaseModel):
     status: Literal["open", "acknowledged", "closed"] = "open"
     triggered_at: datetime
     evidence: dict[str, Any]
+
+
+class RiskEvaluateRequest(BaseModel):
+    watchpoint_id: str
+
+
+class ReportCreate(BaseModel):
+    report_type: Literal["weather_brief", "resource_assessment", "risk_review"]
+    watchpoint_id: str
+
+
+class Report(BaseModel):
+    id: str
+    report_type: str
+    watchpoint_id: str
+    title: str
+    generated_at: datetime
+    source: str
+    summary: dict[str, Any]
