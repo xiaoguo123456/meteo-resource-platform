@@ -9,3 +9,4 @@ dist/
 .env.*
 !.env.example
 coverage/
+apps/web/public/cesium/
