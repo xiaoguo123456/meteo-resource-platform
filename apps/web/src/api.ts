@@ -3,7 +3,7 @@ import axios from 'axios'
 export type Watchpoint = { id: string; name: string; latitude: number; longitude: number; timezone: string; tags: string[] }
 export type WeatherPoint = { time: string; temperature_c: number | null; wind_speed_ms: number | null; precipitation_mm: number | null; cloud_cover_pct: number | null; shortwave_radiation_wm2: number | null; quality_flag: string }
 
-const client = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000' })
+const client = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || '' })
 
 export async function getWatchpoints() {
   return (await client.get<Watchpoint[]>('/api/v1/watchpoints')).data

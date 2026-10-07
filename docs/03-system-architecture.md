@@ -102,3 +102,5 @@ flowchart TB
 - 查询按坐标网格、变量、时间范围和模型缓存；地图瓦片使用 Nginx 或 CDN 缓存。
 - Open-Meteo 地址、内部令牌和通知密钥只放服务端环境变量，不进入浏览器包。
 - 所有报告、风险事件和规则变更保留创建人、创建时间、数据版本和规则版本。
+
+生产入口的 Nginx 配置见 [`deploy/nginx/meteo-resource-platform.conf`](../deploy/nginx/meteo-resource-platform.conf)。采用“白名单免认证 + 其他来源 Basic Auth”的访问策略，Open-Meteo 和 API 服务只监听回环地址，避免绕过入口直接访问容器端口。

@@ -45,6 +45,12 @@ class OpenMeteoClient:
             "cloud_cover_pct": hourly.get("cloud_cover") or [],
             "shortwave_radiation_wm2": hourly.get("shortwave_radiation") or [],
         }
+        units = payload.get("hourly_units") or {}
+        wind_unit = units.get("wind_speed_10m")
+        if wind_unit in {"km/h", "kmh"}:
+            arrays["wind_speed_ms"] = [value / 3.6 if value is not None else None for value in arrays["wind_speed_ms"]]
+        elif wind_unit in {"mph"}:
+            arrays["wind_speed_ms"] = [value * 0.44704 if value is not None else None for value in arrays["wind_speed_ms"]]
         points: list[WeatherPoint] = []
         for index, timestamp in enumerate(times):
             values = {key: values[index] if index < len(values) else None for key, values in arrays.items()}
@@ -53,7 +59,7 @@ class OpenMeteoClient:
             raise OpenMeteoError("Open-Meteo 响应缺少 hourly.time")
         return WeatherForecastResponse(
             watchpoint=watchpoint,
-            model=str(payload.get("generationtime_ms", "open-meteo")),
+            model=str(payload.get("model") or payload.get("generationtime_ms", "open-meteo")),
             run_time=datetime.now(timezone.utc),
             source=source,
             points=points,
