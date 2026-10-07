@@ -1,0 +1,21 @@
+[Unit]
+Description=气象资源空间智能平台 API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=meteo
+Group=meteo
+WorkingDirectory=/opt/meteo-resource-platform
+EnvironmentFile=/etc/meteo-resource-platform/api.env
+ExecStart=/opt/meteo-resource-platform/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/meteo-resource-platform
+
+[Install]
+WantedBy=multi-user.target
