@@ -46,9 +46,10 @@ async function updateWindLayer() {
       const endLatitude = point.latitude + Math.cos(direction) * length
       const endLongitude = point.longitude + Math.sin(direction) * length
       windEntities.push(viewer.entities.add({
-        position: Cartesian3.fromDegrees(point.longitude, point.latitude, 20000),
+        position: Cartesian3.fromDegrees(point.longitude, point.latitude, 30000),
+        point: { pixelSize: 7, color: Color.fromCssColorString('#1f85d6').withAlpha(0.9), outlineColor: Color.WHITE, outlineWidth: 1 },
         polyline: {
-          positions: Cartesian3.fromDegreesArray([point.longitude, point.latitude, endLongitude, endLatitude]),
+          positions: Cartesian3.fromDegreesArrayHeights([point.longitude, point.latitude, 30000, endLongitude, endLatitude, 30000]),
           width: 2.5,
           material: Color.fromCssColorString('#216dea').withAlpha(0.82),
         },
