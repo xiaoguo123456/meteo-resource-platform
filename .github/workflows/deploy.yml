@@ -16,8 +16,6 @@ jobs:
       DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER || 'meteo-deploy' }}
       DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || 22 }}
-      BASIC_AUTH_USER: ${{ secrets.BASIC_AUTH_USER || 'meteo' }}
-      BASIC_AUTH_PASSWORD: ${{ secrets.BASIC_AUTH_PASSWORD }}
     steps:
       - name: 拉取代码
         uses: actions/checkout@v4
@@ -66,9 +64,7 @@ jobs:
         if: ${{ env.DEPLOY_HOST != '' && env.DEPLOY_SSH_KEY != '' }}
         run: |
           ssh -i ~/.ssh/meteo_deploy_key -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv nginx apache2-utils"
-          printf '%s\n' "$BASIC_AUTH_PASSWORD" | ssh -i ~/.ssh/meteo_deploy_key -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "sudo install -d -m 755 /etc/meteo-resource-platform; if [ ! -f /etc/nginx/.htpasswd-meteo ]; then sudo htpasswd -i -c /etc/nginx/.htpasswd-meteo '$BASIC_AUTH_USER'; fi"
+            "sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv nginx"
           scp -i ~/.ssh/meteo_deploy_key -P "$DEPLOY_PORT" deploy/remote-deploy.sh "$DEPLOY_USER@$DEPLOY_HOST:/tmp/meteo-resource-deploy-${GITHUB_SHA}"
           ssh -i ~/.ssh/meteo_deploy_key -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "sudo install -m 755 /tmp/meteo-resource-deploy-${GITHUB_SHA} /usr/local/sbin/meteo-resource-deploy"

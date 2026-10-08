@@ -27,8 +27,7 @@ API 服务使用 `deploy/systemd/meteo-resource-api.service`，监听 `127.0.0.1
 
 入口配置见 [`nginx/meteo-resource-platform.conf`](./nginx/meteo-resource-platform.conf)：
 
-- 白名单 IP 直接通过。
-- 其他 IP 使用 Basic Auth。
+- 网站、API 和 Open-Meteo 代理公开访问。
 - Open-Meteo 只绑定 `127.0.0.1:8090`。
 - `/health` 保持无认证供监控使用。
 
