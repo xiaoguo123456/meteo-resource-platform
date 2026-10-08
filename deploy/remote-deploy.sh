@@ -40,5 +40,14 @@ systemctl daemon-reload
 systemctl enable --now meteo-resource-api.service
 systemctl restart meteo-resource-api.service
 systemctl reload nginx
-curl --fail --silent http://127.0.0.1:8000/health >/dev/null
+for attempt in $(seq 1 20); do
+  if curl --fail --silent http://127.0.0.1:8000/health >/dev/null; then
+    break
+  fi
+  if [ "$attempt" -eq 20 ]; then
+    echo "API 健康检查失败" >&2
+    exit 1
+  fi
+  sleep 1
+done
 rm -f "$release_file"
