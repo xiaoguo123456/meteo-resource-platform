@@ -33,6 +33,7 @@ fi
 install -m 644 "$release_dir/deploy/systemd/meteo-resource-api.service" /etc/systemd/system/meteo-resource-api.service
 sed "s#^root /var/www/meteo-resource-platform;#root $root_dir/current-web;#" \
   "$release_dir/deploy/nginx/meteo-resource-platform.conf" > /etc/nginx/sites-available/meteo-resource-platform.conf
+rm -f /etc/nginx/sites-enabled/default
 ln -sfn /etc/nginx/sites-available/meteo-resource-platform.conf /etc/nginx/sites-enabled/meteo-resource-platform.conf
 nginx -t
 systemctl daemon-reload
