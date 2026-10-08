@@ -21,13 +21,13 @@ button { cursor: pointer; }
 
 .notice-banner { margin: -8px 0 18px; padding: 11px 14px; border-radius: 8px; background: #eafaf3; color: #14865d; font-size: 13px; cursor: pointer; }
 
-.overview-map { padding: 16px; min-height: 610px; }
+.overview-map { padding: 16px; min-height: 450px; }
 .overview-map-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
 .overview-map-head h2, .workspace-toolbar h2 { margin: 0; font-size: 18px; }
 .overview-map-head span, .workspace-toolbar span { color: #8b98a9; display: block; font-size: 12px; margin-top: 5px; }
-.overview-map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 14px; min-height: 525px; }
-.overview-map-stage, .cesium-stage { position: relative; min-height: 525px; overflow: hidden; border-radius: 10px; background: #c6e0e5; }
-.overview-map-stage .cesium-surface, .cesium-stage .cesium-surface { min-height: 525px; height: 100%; border-radius: 10px; }
+.overview-map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 14px; min-height: 380px; }
+.overview-map-stage, .cesium-stage { position: relative; min-height: 380px; overflow: hidden; border-radius: 10px; background: #c6e0e5; }
+.overview-map-stage .cesium-surface, .cesium-stage .cesium-surface { min-height: 380px; height: 100%; border-radius: 10px; }
 .map-layer-tabs { position: absolute; left: 14px; top: 14px; z-index: 2; display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: rgba(255,255,255,.94); box-shadow: 0 5px 18px rgba(20,42,75,.15); }
 .map-layer-tabs button { border: 0; border-radius: 6px; padding: 8px 14px; background: transparent; color: #50627b; font-size: 12px; }
 .map-layer-tabs button.selected { color: #fff; background: #216dea; }
