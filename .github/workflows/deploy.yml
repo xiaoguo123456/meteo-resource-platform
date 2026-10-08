@@ -1,0 +1,77 @@
+name: 发布气象资源平台
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-build-deploy:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER || 'meteo-deploy' }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || 22 }}
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 测试 API
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r apps/api/requirements.txt pytest
+          ALLOW_DEMO_DATA=true PYTHONPATH=apps/api pytest -q apps/api/tests
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: 构建 Web
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run build
+
+      - name: 打包发布文件
+        run: |
+          tar -czf meteo-release.tgz \
+            apps/api \
+            apps/web/dist \
+            deploy/nginx/meteo-resource-platform.conf \
+            deploy/systemd/meteo-resource-api.service
+
+      - name: 准备 SSH
+        if: ${{ env.DEPLOY_HOST != '' && env.DEPLOY_SSH_KEY != '' }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/meteo_deploy_key
+          chmod 600 ~/.ssh/meteo_deploy_key
+          ssh-keyscan -p "$DEPLOY_PORT" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: 上传并发布
+        if: ${{ env.DEPLOY_HOST != '' && env.DEPLOY_SSH_KEY != '' }}
+        run: |
+          scp -i ~/.ssh/meteo_deploy_key -P "$DEPLOY_PORT" deploy/remote-deploy.sh "$DEPLOY_USER@$DEPLOY_HOST:/tmp/meteo-resource-deploy-${GITHUB_SHA}"
+          ssh -i ~/.ssh/meteo_deploy_key -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sudo install -m 755 /tmp/meteo-resource-deploy-${GITHUB_SHA} /usr/local/sbin/meteo-resource-deploy"
+          scp -i ~/.ssh/meteo_deploy_key -P "$DEPLOY_PORT" meteo-release.tgz "$DEPLOY_USER@$DEPLOY_HOST:/tmp/meteo-release-${GITHUB_SHA}.tgz"
+          ssh -i ~/.ssh/meteo_deploy_key -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sudo /usr/local/sbin/meteo-resource-deploy /tmp/meteo-release-${GITHUB_SHA}.tgz ${GITHUB_SHA}"
+
+      - name: 发布后健康检查
+        if: ${{ env.DEPLOY_HOST != '' && env.DEPLOY_SSH_KEY != '' }}
+        run: |
+          ssh -i ~/.ssh/meteo_deploy_key -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "curl --fail --silent http://127.0.0.1/health"
