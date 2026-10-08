@@ -45,6 +45,7 @@ def _demo_forecast(watchpoint: Watchpoint) -> WeatherForecastResponse:
             "time": hour,
             "quality_flag": "estimated",
             "temperature_c": round(16 + 7 * ((i % 24) / 23), 1),
+            "relative_humidity_pct": round(58 + 18 * ((i + 6) % 24) / 23, 1),
             "wind_speed_ms": round(4 + (i % 9) * 0.6, 1),
             "precipitation_mm": round(0.2 * (i % 5), 1),
             "cloud_cover_pct": 35 + (i * 7) % 55,

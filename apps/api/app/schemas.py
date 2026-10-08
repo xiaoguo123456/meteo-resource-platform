@@ -23,6 +23,7 @@ class WatchpointCreate(BaseModel):
 class WeatherPoint(BaseModel):
     time: datetime
     temperature_c: float | None = None
+    relative_humidity_pct: float | None = None
     wind_speed_ms: float | None = None
     precipitation_mm: float | None = None
     cloud_cover_pct: float | None = None

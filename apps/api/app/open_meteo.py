@@ -20,7 +20,7 @@ class OpenMeteoClient:
         params = {
             "latitude": watchpoint.latitude,
             "longitude": watchpoint.longitude,
-            "hourly": "temperature_2m,wind_speed_10m,precipitation,cloud_cover,shortwave_radiation",
+            "hourly": "temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation,cloud_cover,shortwave_radiation",
             "forecast_days": 3,
             "timezone": "UTC",
             "wind_speed_unit": "ms",
@@ -41,6 +41,7 @@ class OpenMeteoClient:
         times = hourly.get("time") or []
         arrays = {
             "temperature_c": hourly.get("temperature_2m") or [],
+            "relative_humidity_pct": hourly.get("relative_humidity_2m") or [],
             "wind_speed_ms": hourly.get("wind_speed_10m") or [],
             "precipitation_mm": hourly.get("precipitation") or [],
             "cloud_cover_pct": hourly.get("cloud_cover") or [],

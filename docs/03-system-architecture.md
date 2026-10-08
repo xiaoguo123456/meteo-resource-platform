@@ -9,7 +9,7 @@
 | 层 | 选型 | 作用 |
 | --- | --- | --- |
 | Web 应用 | Vue 3 + TypeScript + Vite | 中后台页面和组件化开发 |
-| 空间引擎 | CesiumJS + vue-cesium | 2D/3D 地球、地形、图层和时间轴 |
+| 空间引擎 | CesiumJS（Vue 组件封装） | 2D/3D 地球、底图、关注点和图层 |
 | 图表与组件 | Apache ECharts + Arco Design Vue | 趋势、地图侧栏、表格和状态组件 |
 | 状态与请求 | Pinia + TanStack Query | 筛选状态、缓存和异步请求 |
 | BFF/API | Python FastAPI + Pydantic + SQLAlchemy | 统一接口、数据校验和业务编排 |
@@ -103,4 +103,4 @@ flowchart TB
 - Open-Meteo 地址、内部令牌和通知密钥只放服务端环境变量，不进入浏览器包。
 - 所有报告、风险事件和规则变更保留创建人、创建时间、数据版本和规则版本。
 
-生产入口的 Nginx 配置见 [`deploy/nginx/meteo-resource-platform.conf`](../deploy/nginx/meteo-resource-platform.conf)。采用“白名单免认证 + 其他来源 Basic Auth”的访问策略，Open-Meteo 和 API 服务只监听回环地址，避免绕过入口直接访问容器端口。
+生产入口的 Nginx 配置见 [`deploy/nginx/meteo-resource-platform.conf`](../deploy/nginx/meteo-resource-platform.conf)。当前平台公开访问，Open-Meteo 和 API 服务只监听回环地址，避免绕过入口直接访问容器端口。
