@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .open_meteo import OpenMeteoClient, OpenMeteoError
-from .schemas import Report, ReportCreate, ResourceAssessment, RiskEvaluateRequest, RiskEvent, RiskRule, Watchpoint, WatchpointCreate, WeatherForecastResponse
+from .schemas import Report, ReportCreate, ResourceAssessment, RiskEvaluateRequest, RiskEvent, RiskRule, Watchpoint, WatchpointCreate, WeatherForecastResponse, WeatherGridPoint
 from .store import REPORTS, RISK_EVENTS, RISK_RULES, WATCHPOINTS, add_watchpoint, now_utc
 
 settings = get_settings()
@@ -62,16 +62,67 @@ def _demo_forecast(watchpoint: Watchpoint) -> WeatherForecastResponse:
 
 
 @router.get("/weather/forecast", response_model=WeatherForecastResponse)
-async def forecast(watchpoint_id: str = Query(...)) -> WeatherForecastResponse:
-    watchpoint = WATCHPOINTS.get(watchpoint_id)
-    if watchpoint is None:
-        raise HTTPException(status_code=404, detail="关注点不存在")
+async def forecast(
+    watchpoint_id: Annotated[str | None, Query()] = None,
+    latitude: Annotated[float | None, Query(ge=-90, le=90)] = None,
+    longitude: Annotated[float | None, Query(ge=-180, le=180)] = None,
+) -> WeatherForecastResponse:
+    if watchpoint_id and (latitude is not None or longitude is not None):
+        raise HTTPException(status_code=422, detail="关注点与坐标不能同时传入")
+    if watchpoint_id:
+        watchpoint = WATCHPOINTS.get(watchpoint_id)
+        if watchpoint is None:
+            raise HTTPException(status_code=404, detail="关注点不存在")
+    elif latitude is not None and longitude is not None:
+        watchpoint = Watchpoint(
+            id=f"map-{latitude:.4f}-{longitude:.4f}",
+            name="地图选点",
+            latitude=latitude,
+            longitude=longitude,
+            timezone="UTC",
+            tags=["地图选点"],
+        )
+    else:
+        raise HTTPException(status_code=422, detail="需要提供 watchpoint_id 或 latitude、longitude")
     try:
         return await OpenMeteoClient(settings).forecast(watchpoint)
     except OpenMeteoError as exc:
         if settings.allow_demo_data:
             return _demo_forecast(watchpoint)
         raise HTTPException(status_code=502, detail=f"Open-Meteo 请求失败：{exc}") from exc
+
+
+@router.get("/weather/grid", response_model=list[WeatherGridPoint])
+async def weather_grid(
+    min_latitude: Annotated[float, Query(ge=-90, le=90)] = 0,
+    max_latitude: Annotated[float, Query(ge=-90, le=90)] = 60,
+    min_longitude: Annotated[float, Query(ge=-180, le=180)] = 70,
+    max_longitude: Annotated[float, Query(ge=-180, le=180)] = 150,
+    step: Annotated[float, Query(gt=0, le=20)] = 10,
+) -> list[WeatherGridPoint]:
+    """返回当前小时网格，供 Cesium 风场/云量图层绘制矢量标记。"""
+    if min_latitude >= max_latitude or min_longitude >= max_longitude:
+        raise HTTPException(status_code=422, detail="网格范围无效")
+    latitudes = []
+    latitude = min_latitude
+    while latitude <= max_latitude + 1e-9:
+        latitudes.append(round(latitude, 4))
+        latitude += step
+    longitudes = []
+    longitude = min_longitude
+    while longitude <= max_longitude + 1e-9:
+        longitudes.append(round(longitude, 4))
+        longitude += step
+    if len(latitudes) * len(longitudes) > 144:
+        raise HTTPException(status_code=422, detail="网格点数量不能超过 144 个")
+    coordinates = [(lat, lon) for lat in latitudes for lon in longitudes]
+    try:
+        return await OpenMeteoClient(settings).grid(coordinates)
+    except OpenMeteoError as exc:
+        if settings.allow_demo_data:
+            now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+            return [WeatherGridPoint(latitude=lat, longitude=lon, valid_time=now, wind_speed_ms=4, wind_direction_deg=90, temperature_c=20, cloud_cover_pct=40, precipitation_mm=0, shortwave_radiation_wm2=200, quality_flag="estimated") for lat, lon in coordinates]
+        raise HTTPException(status_code=502, detail=f"Open-Meteo 网格请求失败：{exc}") from exc
 
 
 @router.get("/resources/assessment", response_model=ResourceAssessment)

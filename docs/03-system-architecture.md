@@ -27,7 +27,7 @@ flowchart TB
   cesium[Cesium Viewer / 图层 / 时间轴]
   bff[FastAPI BFF]
   adapter[Open-Meteo Adapter]
-  spatial[空间查询与瓦片服务]
+  spatial[空间查询与网格/瓦片服务]
   analysis[天气与风光资源分析]
   risk[风险规则与提醒服务]
   report[报告生成服务]
@@ -60,7 +60,7 @@ flowchart TB
 1. 采集器按模型更新时间拉取 Forecast、Historical、Air Quality、Marine、Flood、Elevation 等数据。
 2. 采集任务保存原始响应和请求元数据，失败任务可重试并进入死信队列。
 3. 标准化任务完成变量、单位、时区、坐标和质量状态转换，并按统一键去重。
-4. 空间服务将关注点、区域和栅格结果按视口切片，Cesium 只加载当前范围。
+4. 空间服务将坐标查询、风场网格和雷达瓦片按视口提供给 Cesium；当前小时风场先以轻量矢量网格绘制，降水使用带署名的 RainViewer 雷达瓦片。
 5. 分析任务将天气序列、地形和区域边界对齐，生成资源统计、对比和风险特征。
 6. 风险服务根据变量、阈值、时间窗和区域生成提醒，保留触发证据。
 7. 报告任务读取分析和风险结果，生成天气简报、资源评估报告或风险复盘。
@@ -86,6 +86,7 @@ flowchart TB
 | GET | `/api/v1/watchpoints` | 关注点列表、筛选和空间范围 |
 | POST | `/api/v1/watchpoints` | 新建关注点并触发地理信息补全 |
 | GET | `/api/v1/weather/forecast` | 按关注点、区域、时间和变量返回预报 |
+| GET | `/api/v1/weather/grid` | 返回当前小时风场网格矢量 |
 | GET | `/api/v1/weather/runs` | 模型运行列表、对比和历史回看 |
 | GET | `/api/v1/spatial/layers` | Cesium 图层目录和瓦片地址 |
 | GET | `/api/v1/resources/assessment` | 风光资源统计和区域对比 |

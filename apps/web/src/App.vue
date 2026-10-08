@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, type Component } from 'vue'
+import { computed, onBeforeUnmount, ref, watch, type Component } from 'vue'
 import { Bell, CloudSun, Database, Droplets, LayoutDashboard, Search, SunMedium, Thermometer, TriangleAlert, Wind } from 'lucide-vue-next'
-import { createReport, evaluateRisks, getForecast, getQualitySummary, getWatchpoints, type Watchpoint, type WeatherPoint } from './api'
+import { createReport, evaluateRisks, getForecast, getForecastByCoordinates, getQualitySummary, getWatchpoints, type Watchpoint, type WeatherPoint } from './api'
 import CesiumSurface from './components/CesiumSurface.vue'
 
 type NavItem = { key: string; label: string; icon: Component; title: string; subtitle: string }
@@ -16,13 +16,25 @@ const navItems: NavItem[] = [
 const currentKey = ref('overview')
 const watchpoints = ref<Watchpoint[]>([])
 const selectedId = ref('wp-east')
+const selectedPoint = ref<Watchpoint | null>(null)
+const pointForecast = ref<WeatherPoint[]>([])
+const pointLoading = ref(false)
+const pointError = ref('')
+let pointRequest: AbortController | undefined
+const pointHour = computed(() => {
+  const hour = Math.floor(Date.now() / 3600000) * 3600000
+  return pointForecast.value.find(item => Date.parse(item.time) >= hour)
+})
+const displayValue = (value: number | null | undefined) => value == null ? '—' : value.toFixed(1)
+const coordinatesLabel = computed(() => selectedPoint.value ? `${selectedPoint.value.latitude.toFixed(4)}°, ${selectedPoint.value.longitude.toFixed(4)}°` : '')
 const points = ref<WeatherPoint[]>([])
 const sourceStatus = ref<{ name: string; status: string; freshness_minutes: number; coverage_percent: number }[]>([])
 const loading = ref(true)
 const error = ref('')
 const notice = ref('')
-const layerOptions = ['风场', '云量', '辐照度', '降水'] as const
-const activeLayer = ref<(typeof layerOptions)[number]>('风场')
+const layerOptions = ['底图', '风场', '云量', '辐照度', '降水'] as const
+const readyLayers = new Set(['底图', '风场', '降水'])
+const activeLayer = ref<(typeof layerOptions)[number]>('底图')
 const active = computed(() => navItems.find((item) => item.key === currentKey.value) || navItems[0])
 const selected = computed(() => watchpoints.value.find((item) => item.id === selectedId.value) || watchpoints.value[0])
 const chartPoints = computed(() => points.value.slice(0, 24))
@@ -64,11 +76,30 @@ async function generateReport(type: 'weather_brief' | 'resource_assessment' | 'r
   } catch { error.value = '报告生成失败，请检查 API 服务。' }
 }
 
+async function selectMapPoint(latitude: number, longitude: number) {
+  pointRequest?.abort()
+  const request = new AbortController()
+  pointRequest = request
+  selectedPoint.value = { id: 'map-point', name: '地图选点', latitude, longitude, timezone: 'UTC', tags: [] }
+  pointForecast.value = []
+  pointLoading.value = true
+  pointError.value = ''
+  try {
+    const response = await getForecastByCoordinates(latitude, longitude, request.signal)
+    if (pointRequest === request) pointForecast.value = response.points
+  } catch {
+    if (pointRequest === request && !request.signal.aborted) pointError.value = '该坐标天气暂不可用，请重试。'
+  } finally {
+    if (pointRequest === request) pointLoading.value = false
+  }
+}
+onBeforeUnmount(() => pointRequest?.abort())
+
 watch(selectedId, async () => {
   if (!selectedId.value) return
   try { points.value = (await getForecast(selectedId.value)).points } catch (err) { console.error(err) }
 })
-onMounted(loadData)
+watch(currentKey, () => { if (currentKey.value !== 'overview' && !watchpoints.value.length) void loadData() })
 </script>
 
 <template>
@@ -87,10 +118,41 @@ onMounted(loadData)
       <div class="sidebar-footer">V0.2</div>
     </aside>
     <main class="main-content">
-      <div class="page-heading"><div><h1>{{ active.title }}</h1><p>{{ active.subtitle }}</p></div><div class="toolbar"><select v-model="selectedId"><option v-for="item in watchpoints" :key="item.id" :value="item.id">关注区域：{{ item.name }}</option></select><button class="date-btn">2026-10-07　⌄</button></div></div>
+      <div class="page-heading"><div><h1>{{ active.title }}</h1></div></div>
       <div v-if="error" class="error-banner">{{ error }} <button @click="loadData">重试</button></div>
       <div v-if="notice" class="notice-banner" @click="notice = ''">{{ notice }}</div>
-      <section v-if="currentKey === 'overview'" class="overview-map panel"><div class="overview-map-head"><div><h2>空间总览</h2><span>实时关注区域 · {{ selected?.name }} · 当前图层：{{ activeLayer }}</span></div></div><div class="overview-map-layout"><div class="overview-map-stage"><div class="map-layer-tabs"><button v-for="layer in layerOptions" :key="layer" :class="{ selected: activeLayer === layer }" @click="activeLayer = layer">{{ layer }}</button></div><CesiumSurface :latitude="selected?.latitude" :longitude="selected?.longitude" :label="selected?.name" :layer="activeLayer" /></div><aside class="overview-map-summary"><div class="summary-location"><span class="summary-pin">●</span><div><strong>{{ selected?.name }}</strong><small>{{ selected?.latitude }}°N, {{ selected?.longitude }}°E</small></div></div><div class="summary-metric"><b>{{ averageTemp }}°C</b><span>近地面气温</span></div><div class="summary-metric"><b>{{ averageWind }} m/s</b><span>10 米风速</span></div><div class="summary-metric"><b>{{ averageRadiation }} W/m²</b><span>水平面辐照度</span></div><div class="summary-metric"><b>{{ averageHumidity }}%</b><span>相对湿度</span></div></aside></div></section>
+      <section v-if="currentKey === 'overview'" class="overview-map panel">
+        <div class="overview-map-layout">
+          <div class="overview-map-stage">
+            <div class="map-layer-tabs" aria-label="地图图层">
+              <button v-for="layer in layerOptions" :key="layer" :disabled="!readyLayers.has(layer)"
+                :title="readyLayers.has(layer) ? (layer === '降水' ? 'RainViewer 雷达瓦片' : layer === '风场' ? 'Open-Meteo 当前小时网格' : '地理底图') : '开放网格正在建设'" :aria-pressed="activeLayer === layer"
+                :class="{ selected: activeLayer === layer }" @click="activeLayer = layer">{{ layer }}<small v-if="!readyLayers.has(layer)">待接入</small></button>
+            </div>
+            <CesiumSurface :latitude="selectedPoint?.latitude" :longitude="selectedPoint?.longitude" :layer="activeLayer" @select="selectMapPoint" />
+          </div>
+          <aside class="overview-map-summary" aria-live="polite" :aria-busy="pointLoading">
+            <template v-if="selectedPoint">
+              <div class="summary-location"><div><strong>所选位置</strong><small>{{ coordinatesLabel }}</small></div></div>
+              <p v-if="pointLoading" class="point-state">正在查询天气…</p>
+              <div v-else-if="pointError" class="point-state error-text">{{ pointError }}<button class="text-btn" @click="selectMapPoint(selectedPoint.latitude, selectedPoint.longitude)">重试</button></div>
+              <template v-else-if="pointHour">
+                <div class="point-time">{{ new Date(pointHour.time).toLocaleString('zh-CN', { timeZone: 'UTC' }) }} UTC · 小时预报</div>
+                <div class="point-metrics">
+                  <div class="summary-metric"><Thermometer :size="18" /><b>{{ displayValue(pointHour.temperature_c) }} °C</b><span>气温</span></div>
+                  <div class="summary-metric"><Wind :size="18" /><b>{{ displayValue(pointHour.wind_speed_ms) }} m/s</b><span>10 米风速</span></div>
+                  <div class="summary-metric"><SunMedium :size="18" /><b>{{ displayValue(pointHour.shortwave_radiation_wm2) }} W/m²</b><span>辐照度</span></div>
+                  <div class="summary-metric"><Droplets :size="18" /><b>{{ displayValue(pointHour.relative_humidity_pct) }} %</b><span>相对湿度</span></div>
+                  <div class="summary-metric"><CloudSun :size="18" /><b>{{ displayValue(pointHour.cloud_cover_pct) }} %</b><span>云量</span></div>
+                  <div class="summary-metric"><Droplets :size="18" /><b>{{ displayValue(pointHour.precipitation_mm) }} mm</b><span>小时降水</span></div>
+                </div>
+              </template>
+              <p v-else class="point-state">该坐标没有当前时段预报</p>
+            </template>
+            <div v-else class="map-empty-state">点击地图查看天气</div>
+          </aside>
+        </div>
+      </section>
       <section v-else-if="currentKey === 'forecast'" class="panel module-page"><div class="module-page-head"><div><h2>预报与模型</h2><span>未来 7 天 · {{ selected?.name }}</span></div><div class="model-pills"><span class="model blue">ECMWF</span><span class="model green">GFS</span><span class="model orange">ICON</span></div></div><div class="forecast-chart"><svg viewBox="0 0 900 230" preserveAspectRatio="none"><path d="M0 190 C80 140 120 145 175 115 S270 145 330 96 S430 112 500 82 S590 96 655 72 S760 100 900 55" fill="none" stroke="#216dea" stroke-width="4"/><path d="M0 200 C80 168 130 160 175 134 S270 160 330 115 S430 137 500 103 S590 115 655 98 S760 120 900 75" fill="none" stroke="#28b487" stroke-width="4"/><path d="M0 207 C80 188 120 177 175 155 S270 182 330 136 S430 155 500 122 S590 140 655 116 S760 146 900 95" fill="none" stroke="#f3a52f" stroke-width="4"/></svg></div><div class="data-table"><div class="table-row table-head"><span>模型</span><span>运行时间</span><span>状态</span><span>预报时长</span></div><div v-for="item in ['ECMWF', 'GFS', 'ICON']" :key="item" class="table-row"><b>{{ item }}</b><span>2026-10-07 06:00</span><span class="tag warning">待校验</span><span>7 天</span></div></div></section>
       <section v-else-if="currentKey === 'resources'" class="panel module-page"><div class="module-page-head"><div><h2>风光资源评估</h2><span>基于天气资源的区域潜力分析</span></div><button class="primary-btn">新建评估</button></div><div class="resource-grid"><div class="resource-map solar-map"><span>水平面总辐照度 GHI</span><b>{{ averageRadiation }} W/m²</b></div><div class="resource-map wind-map"><span>100 米高度平均风速</span><b>{{ averageWind }} m/s</b></div><div class="resource-summary"><h3>资源概览</h3><div><span>太阳能潜力</span><strong>{{ Math.min(100, Math.round(averageRadiation / 6)) }}<small>/100</small></strong></div><div><span>风能潜力</span><strong>{{ Math.min(100, Math.round(Number(averageWind) * 6)) }}<small>/100</small></strong></div><div><span>评估周期</span><b>未来 72 小时</b></div></div></div></section>
       <section v-else-if="currentKey === 'risk'" class="panel module-page"><div class="module-page-head"><div><h2>风险与情景</h2><span>阈值天气预警 · 影响范围 · 情景分析</span></div><button class="primary-btn" @click="runRiskEvaluation">运行评估</button></div><div class="risk-stats"><div><b>3</b><span>高风险提醒</span></div><div><b>5</b><span>中风险提醒</span></div><div><b>8</b><span>关注事件</span></div><div><b>0</b><span>已删除</span></div></div><div class="data-table"><div class="table-row table-head"><span>事件类型</span><span>发生时间</span><span>风险状态</span><span>操作</span></div><div v-for="item in [['大风','2026-10-08 ~ 10-09','待确认'],['降水','2026-10-10 ~ 10-11','已确认'],['高温','2026-10-12 ~ 10-13','待确认']]" :key="item[0]" class="table-row"><b>{{ item[0] }}</b><span>{{ item[1] }}</span><span class="tag warning">{{ item[2] }}</span><button class="text-btn">查看证据</button></div></div></section>

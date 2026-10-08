@@ -2,6 +2,7 @@ import axios from 'axios'
 
 export type Watchpoint = { id: string; name: string; latitude: number; longitude: number; timezone: string; tags: string[] }
 export type WeatherPoint = { time: string; temperature_c: number | null; relative_humidity_pct: number | null; wind_speed_ms: number | null; precipitation_mm: number | null; cloud_cover_pct: number | null; shortwave_radiation_wm2: number | null; quality_flag: string }
+export type WeatherGridPoint = { latitude: number; longitude: number; temperature_c: number | null; wind_speed_ms: number | null; wind_direction_deg: number | null; cloud_cover_pct: number | null; precipitation_mm: number | null; shortwave_radiation_wm2: number | null; valid_time: string; quality_flag: string }
 
 const client = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || '' })
 
@@ -11,6 +12,18 @@ export async function getWatchpoints() {
 
 export async function getForecast(watchpointId: string) {
   return (await client.get<{ watchpoint: Watchpoint; points: WeatherPoint[]; model: string; source: string }>('/api/v1/weather/forecast', { params: { watchpoint_id: watchpointId } })).data
+}
+
+export async function getForecastByCoordinates(latitude: number, longitude: number, signal?: AbortSignal) {
+  return (await client.get<{ watchpoint: Watchpoint; points: WeatherPoint[]; model: string; source: string }>('/api/v1/weather/forecast', { params: { latitude, longitude }, signal, timeout: 20000 })).data
+}
+
+export async function getWeatherGrid(signal?: AbortSignal) {
+  return (await client.get<WeatherGridPoint[]>('/api/v1/weather/grid', {
+    params: { min_latitude: 0, max_latitude: 60, min_longitude: 70, max_longitude: 150, step: 10 },
+    signal,
+    timeout: 30000,
+  })).data
 }
 
 export async function getQualitySummary() {

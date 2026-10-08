@@ -31,6 +31,10 @@ button { cursor: pointer; }
 .map-layer-tabs { position: absolute; left: 14px; top: 14px; z-index: 2; display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: rgba(255,255,255,.94); box-shadow: 0 5px 18px rgba(20,42,75,.15); }
 .map-layer-tabs button { border: 0; border-radius: 6px; padding: 8px 14px; background: transparent; color: #50627b; font-size: 12px; }
 .map-layer-tabs button.selected { color: #fff; background: #216dea; }
+.map-layer-tabs button:disabled { cursor: not-allowed; color: #a7b2c1; }
+.map-layer-tabs button:disabled small { display: block; font-size: 9px; line-height: 1; margin-top: 2px; color: #b6bfca; }
+.map-layer-tabs button.selected:disabled { color: #fff; }
+.map-layer-tabs button.selected:disabled small { color: rgba(255,255,255,.78); }
 .map-controls { position: absolute; left: 14px; top: 72px; z-index: 2; display: grid; gap: 4px; }
 .map-controls button { width: 32px; height: 32px; border: 0; border-radius: 7px; background: rgba(255,255,255,.94); color: #50627b; font-size: 17px; box-shadow: 0 3px 10px rgba(20,42,75,.12); }
 .overview-map-summary, .detail-card { padding: 17px; border: 1px solid #edf1f6; border-radius: 10px; background: #fff; }
@@ -43,6 +47,14 @@ button { cursor: pointer; }
 .summary-metric:last-child { border-bottom: 0; }
 .summary-metric b { display: block; color: #1e3658; font-size: 22px; }
 .summary-metric span { color: #8b98a9; font-size: 11px; }
+.point-state { margin: 0; color: #718096; font-size: 13px; line-height: 1.7; }
+.point-state.error-text { color: #b64343; }
+.point-time { margin: 14px 0 2px; color: #8b98a9; font-size: 11px; }
+.point-metrics { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
+.point-metrics .summary-metric { min-width: 0; }
+.point-metrics .summary-metric svg { color: #216dea; margin-bottom: 8px; }
+.text-btn { padding: 0; }
+.map-empty-state { display: grid; min-height: 350px; place-items: center; text-align: center; color: #8b98a9; font-size: 13px; line-height: 1.8; }
 .workspace-toolbar { padding: 3px 5px 14px; }
 .workspace-toolbar { display: flex; align-items: flex-start; justify-content: space-between; }
 .workspace-source { text-align: right; }

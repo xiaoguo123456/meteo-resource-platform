@@ -40,6 +40,19 @@ class WeatherForecastResponse(BaseModel):
     points: list[WeatherPoint]
 
 
+class WeatherGridPoint(BaseModel):
+    latitude: float
+    longitude: float
+    temperature_c: float | None = None
+    wind_speed_ms: float | None = None
+    wind_direction_deg: float | None = None
+    cloud_cover_pct: float | None = None
+    precipitation_mm: float | None = None
+    shortwave_radiation_wm2: float | None = None
+    valid_time: datetime
+    quality_flag: Literal["raw", "estimated", "missing"] = "raw"
+
+
 class ResourceAssessment(BaseModel):
     watchpoint_id: str
     solar_score: float

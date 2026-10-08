@@ -60,3 +60,14 @@ Open-Meteo 提供气象和环境条件，不提供某个电站、风机或光伏
 - [Flood API](https://open-meteo.com/en/docs/flood-api)
 - [Elevation API](https://open-meteo.com/en/docs/elevation-api)
 - [Geocoding API](https://open-meteo.com/en/docs/geocoding-api)
+
+## 7. 地图网格与瓦片来源
+
+地图交互分成两类数据：点击坐标的天气查询，以及覆盖视口的网格/瓦片图层。
+
+- **坐标查询**：继续使用自部署 Open-Meteo。前端点击地图后调用 `/api/v1/weather/forecast?latitude=...&longitude=...`，不依赖预设区域。
+- **当前小时风场**：使用 Open-Meteo 的多坐标 Forecast 请求生成轻量网格，服务端通过 `/api/v1/weather/grid` 返回风速和风向，Cesium 以矢量线绘制。该链路适合 V0.2 的自部署验证，后续可以把网格结果缓存为 MVT 或 PNG 瓦片。
+- **实时降水雷达**：使用 [RainViewer Weather Maps API](https://www.rainviewer.com/api.html) 的雷达瓦片。接口无需 API Key，但需要保留 RainViewer 署名，不提供 SLA，适合公开演示和小规模使用。
+- **正式预报栅格**：服务端定时下载 [ECMWF Open Data](https://www.ecmwf.int/en/forecasts/datasets/open-data) 或 [NOAA/NCEP GFS NOMADS](https://www.nco.ncep.noaa.gov/pmb/products/gfs/nomads/) 的 GRIB2，按变量、模型运行和有效时间落盘，再转换成内部栅格或瓦片服务。ECMWF 开放数据采用 CC-BY-4.0，发布时保留来源和版本信息；NOAA 数据按 NOMADS 使用条款保留来源。
+
+Windy 官方地图 API 需要单独的 API Key 和商业许可，本版本不直接依赖它，以免把地图能力绑定到外部商业服务。
